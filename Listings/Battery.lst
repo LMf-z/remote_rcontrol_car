@@ -1,0 +1,73 @@
+C51 COMPILER V9.60.7.0   BATTERY                                                           05/10/2024 15:28:54 PAGE 1   
+
+
+C51 COMPILER V9.60.7.0, COMPILATION OF MODULE BATTERY
+OBJECT MODULE PLACED IN .\Objects\Battery.obj
+COMPILER INVOKED BY: D:\Keil_v5\C51\BIN\C51.EXE Driver\Battery.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(.\User;.\OS;.\Lib
+                    -;.\Driver) DEBUG OBJECTEXTEND PRINT(.\Listings\Battery.lst) TABS(2) OBJECT(.\Objects\Battery.obj)
+
+line level    source
+
+   1          #include "Battery.h"
+   2          #include "GPIO.h"
+   3          #include "ADC.h"
+   4          #include "NVIC.h"
+   5          
+   6          static void GPIO_config(void) {
+   7   1        GPIO_InitTypeDef  GPIO_InitStructure;   //结构定义
+   8   1        GPIO_InitStructure.Pin  = GPIO_PIN;   //指定要初始化的IO,
+   9   1        GPIO_InitStructure.Mode = GPIO_HighZ; //指定IO的输入或输出方式,GPIO_PullUp,GPIO_HighZ,GPIO_OUT_OD,GPIO_O
+             -UT_PP
+  10   1        GPIO_Inilize(GPIO_PORT, &GPIO_InitStructure);//初始化
+  11   1      }
+  12          
+  13          /******************* AD配置函数 *******************/
+  14          void  ADC_config(void)
+  15          {
+  16   1        ADC_InitTypeDef   ADC_InitStructure;    //结构定义
+  17   1      
+  18   1        ADC_InitStructure.ADC_SMPduty   = 31;   //ADC 模拟信号采样时间控制, 0~31（注意： SMPDUTY 一定不能设置小于 
+             -10）
+  19   1        ADC_InitStructure.ADC_CsSetup   = 0;    //ADC 通道选择时间控制 0(默认),1
+  20   1        ADC_InitStructure.ADC_CsHold    = 1;    //ADC 通道选择保持时间控制 0,1(默认),2,3
+  21   1        ADC_InitStructure.ADC_Speed     = ADC_SPEED_2X1T;   //设置 ADC 工作时钟频率 ADC_SPEED_2X1T~ADC_SPEED_2X16T
+  22   1        ADC_InitStructure.ADC_AdjResult = ADC_RIGHT_JUSTIFIED;  //ADC结果调整,  ADC_LEFT_JUSTIFIED,ADC_RIGHT_JUSTIF
+             -IED
+  23   1        ADC_Inilize(&ADC_InitStructure);    //初始化
+  24   1        ADC_PowerControl(ENABLE);       //ADC电源开关, ENABLE或DISABLE
+  25   1        NVIC_ADC_Init(DISABLE,Priority_0);    //中断使能, ENABLE/DISABLE; 优先级(低到高) Priority_0,Priority_1,Prio
+             -rity_2,Priority_3
+  26   1      }
+  27          
+  28          void Battery_init(){
+  29   1        GPIO_config();
+  30   1        ADC_config();
+  31   1      }
+  32          
+  33          float Battery_get_voltage(){
+  34   1        float voltage;
+  35   1        // [0, 4095] 12bit计数值
+  36   1        u16 adc_value = Get_ADCResult(BATTERY_ADC_CH); // chn: ADC_CH0, ADC_CH1, ADC_CH2 .... ADC_CH15
+  37   1        // [0, 2.5] float v = result * 基准电压 / 采样精度; 
+  38   1        voltage = adc_value * 2.5 / 4095; //
+  39   1        // 放大6倍
+  40   1        voltage *= 6;
+  41   1        
+  42   1        return voltage;
+  43   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    153    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----      11
+   PDATA SIZE       =   ----    ----
+C51 COMPILER V9.60.7.0   BATTERY                                                           05/10/2024 15:28:54 PAGE 2   
+
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

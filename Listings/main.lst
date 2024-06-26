@@ -1,0 +1,242 @@
+C51 COMPILER V9.60.7.0   MAIN                                                              05/10/2024 15:28:53 PAGE 1   
+
+
+C51 COMPILER V9.60.7.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: D:\Keil_v5\C51\BIN\C51.EXE User\main.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(.\User;.\OS;.\Lib;.\Dr
+                    -iver) DEBUG OBJECTEXTEND PRINT(.\Listings\main.lst) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          #include "config.h"
+   2          #include "UART.h"
+   3          #include "NVIC.h"
+   4          #include "Switch.h"
+   5          #include "../App/App.h"
+   6          
+   7          #include "Light.h"
+   8          #include "Key.h"
+   9          #include "Buzzer.h"
+  10          #include "Motors.h"
+  11          
+  12          /*******************************
+  13          App_Bluetooth.c接收蓝牙通过UART2传来的数据
+  14            - 控制小车移动（根据摇杆）
+  15            - 点亮车灯
+  16            - 开启关闭巡线
+  17            - 蜂鸣器响起
+  18            - 左转/右转
+  19            
+  20          App_Tracker.c 进行循线业务
+  21          
+  22          解决粘包问题
+  23          
+  24          App_Ultrasonic.c 循环测距
+  25            - 距离近：蜂鸣器响起，两声短响
+  26            - 距离近：前方距离低于20cm，停车
+  27          
+  28          App_Battery.c 循环进行电池电量检测
+  29            - 电量低：蜂鸣器响起，三声短响
+  30            - 电量低于12V：不响应运动指令
+  31            
+  32          ********************************/
+  33          
+  34          void GPIO_config(void) {
+  35   1      
+  36   1        // UART1
+  37   1        GPIO_InitTypeDef  GPIO_InitStructure;   //结构定义
+  38   1        GPIO_InitStructure.Pin  = GPIO_Pin_0 | GPIO_Pin_1;    //指定要初始化的IO,
+  39   1        GPIO_InitStructure.Mode = GPIO_PullUp;  //指定IO的输入或输出方式,GPIO_PullUp,GPIO_HighZ,GPIO_OUT_OD,GPIO_
+             -OUT_PP
+  40   1        GPIO_Inilize(GPIO_P3, &GPIO_InitStructure);//初始化
+  41   1      }
+  42          
+  43          void UART_config(void) {
+  44   1        // >>> 记得添加 NVIC.c, UART.c, UART_Isr.c <<<
+  45   1        COMx_InitDefine   COMx_InitStructure;         //结构定义
+  46   1        COMx_InitStructure.UART_Mode      = UART_8bit_BRTx; //模式, UART_ShiftRight,UART_8bit_BRTx,UART_9bit,UAR
+             -T_9bit_BRTx
+  47   1        COMx_InitStructure.UART_BRT_Use   = BRT_Timer1;     //选择波特率发生器, BRT_Timer1, BRT_Timer2 (注意: 串口
+             -2固定使用BRT_Timer2)
+  48   1        COMx_InitStructure.UART_BaudRate  = 115200ul;     //波特率, 一般 110 ~ 115200
+  49   1        COMx_InitStructure.UART_RxEnable  = ENABLE;       //接收允许,   ENABLE或DISABLE
+  50   1        COMx_InitStructure.BaudRateDouble = DISABLE;      //波特率加倍, ENABLE或DISABLE
+  51   1        UART_Configuration(UART1, &COMx_InitStructure);   //初始化串口1 UART1,UART2,UART3,UART4
+C51 COMPILER V9.60.7.0   MAIN                                                              05/10/2024 15:28:53 PAGE 2   
+
+  52   1      
+  53   1        NVIC_UART1_Init(ENABLE,Priority_1);   //中断使能, ENABLE/DISABLE; 优先级(低到高) Priority_0,Priority_1,Pr
+             -iority_2,Priority_3
+  54   1        UART1_SW(UART1_SW_P30_P31);   // 引脚选择, UART1_SW_P30_P31,UART1_SW_P36_P37,UART1_SW_P16_P17,UART1_SW_P4
+             -3_P44
+  55   1      }
+  56          
+  57          
+  58          
+  59          void Key_on_keyup() {
+  60   1      
+  61   1        Light_off(ALL); // 全部熄灭
+  62   1      
+  63   1      //  Buzzer_close();
+  64   1      //  Motors_stop();
+  65   1      }
+  66          
+  67          
+  68          int counter = 0;
+  69          
+  70          void Key_on_keydown() {
+  71   1      //  char rst;
+  72   1        // 全部点亮
+  73   1        Light_on(ALL);
+  74   1      
+  75   1        // 蜂鸣器     -----------------------------------
+  76   1      //  Buzzer_beep();
+  77   1      //  Buzzer_open();
+  78   1      //  Buzzer_play(3, 100); // 3次，每次间隔100ms
+  79   1      
+  80   1      
+  81   1        // 0前进，1后退，2左平移 3右平移，4左掉头，5右掉头
+  82   1      //  switch(counter){
+  83   1      //    case 0:Motors_forward(30);break;
+  84   1      //    case 1:Motors_backward(30);break;
+  85   1      //    case 2:Motors_left(40, 0);break;
+  86   1      //    case 3:Motors_right(40, 0);break;
+  87   1      //    case 4:Motors_around(40, 0);break;
+  88   1      //    case 5:Motors_around(40, 1);break;
+  89   1      //    default: Motors_stop();break;
+  90   1      //  }
+  91   1      //  counter++;
+  92   1      //  counter %= 6; // 0,1,2,3,4,5
+  93   1      //
+  94   1      //  os_wait2(K_TMO, 200);
+  95   1      //  Motors_stop();
+  96   1      
+  97   1      
+  98   1        // 蓝牙使能，让蓝牙从睡眠中唤醒
+  99   1        bt_enable();
+ 100   1        
+ 101   1      }
+ 102          
+ 103          void sys_init() {
+ 104   1        EAXSFR(); // 扩展寄存器使能
+ 105   1        GPIO_config();
+ 106   1        UART_config();
+ 107   1        EA = 1; // 中断总开关
+ 108   1      
+ 109   1        // 初始化硬件驱动
+ 110   1        Light_init();
+ 111   1        Buzzer_init();
+C51 COMPILER V9.60.7.0   MAIN                                                              05/10/2024 15:28:53 PAGE 3   
+
+ 112   1        Motors_init();
+ 113   1      }
+ 114          
+ 115          void start_main() _task_ 0 {
+ 116   1        // 初始化外设
+ 117   1        sys_init();
+ 118   1      
+ 119   1        // 创建其他任务
+ 120   1        os_create_task(TASK_KEY);
+ 121   1        os_create_task(TASK_UART1);
+ 122   1        os_create_task(TASK_BLUETOOTH);
+ 123   1        os_create_task(TASK_ULTRA);
+ 124   1      //  os_create_task(TASK_BATTERY);
+ 125   1        
+ 126   1        // 销毁回收自己
+ 127   1        os_delete_task(0);
+ 128   1      }
+ 129          
+ 130          void task1() _task_ TASK_KEY {
+ 131   1        Key_init();
+ 132   1        while(1) {
+ 133   2          Key_scan();
+ 134   2          os_wait2(K_TMO, 2);// 10ms = 5ms * 2
+ 135   2        }
+ 136   1      }
+ 137          // 指令
+ 138          // 0x01 车灯
+ 139          // 0x02 蜂鸣器
+ 140          // 0x03 前进
+ 141          // 0x04 后退
+ 142          // 0x05 左漂
+ 143          // 0x06 右漂
+ 144          // 0x07 停止
+ 145          
+ 146          // 0x13 修改速度 [1]:最新的速度值
+ 147          int forward_speed = 30;
+ 148          void on_uart1_recv(void){
+ 149   1        // 接收并处理上位机发来的信号
+ 150   1        static u8 light_state = 0; // 0灭，1亮
+ 151   1        
+ 152   1        
+ 153   1        if (RX1_Buffer[0] == 0x01){
+ 154   2          if (light_state == 0){
+ 155   3            Light_on(ALL);
+ 156   3          }else {
+ 157   3            Light_off(ALL);
+ 158   3          }
+ 159   2          // 0 -> 1
+ 160   2          light_state = !light_state;
+ 161   2        }else if (RX1_Buffer[0] == 0x02){
+ 162   2          Buzzer_play(3, 200);
+ 163   2        }
+ 164   1        
+ 165   1        switch (RX1_Buffer[0])
+ 166   1        {
+ 167   2          case 0x03:  // 前进
+ 168   2            Motors_forward(forward_speed);
+ 169   2            break;
+ 170   2          case 0x07:  // 停止
+ 171   2            Motors_stop();
+ 172   2            break;
+ 173   2          case 0x13:  // 按照指定速度前进
+C51 COMPILER V9.60.7.0   MAIN                                                              05/10/2024 15:28:53 PAGE 4   
+
+ 174   2            forward_speed = (int)RX1_Buffer[1];
+ 175   2            Motors_forward(forward_speed);
+ 176   2            break;
+ 177   2          default:
+ 178   2            break;
+ 179   2        }
+ 180   1      }
+ 181          
+ 182          // 1. UART1接收任务：把UART1从PC收到的数据转发给UART2蓝牙模块
+ 183          void task_uart1() _task_ TASK_UART1 {
+ 184   1        u8 i;
+ 185   1      
+ 186   1        while(1) {
+ 187   2          if(COM1.RX_TimeOut > 0) {
+ 188   3            //超时计数
+ 189   3            if(--COM1.RX_TimeOut == 0) {
+ 190   4              if(COM1.RX_Cnt > 0) {
+ 191   5                
+ 192   5                on_uart1_recv();
+ 193   5                // 这里处理收到的数据，做具体的逻辑，可以调用自己的 on_uart1_recv
+ 194   5                for(i=0; i<COM1.RX_Cnt; i++)  {
+ 195   6                  // RX1_Buffer[i]存的是接收的每个字节，写出用 TX1_write2buff
+ 196   6      //            TX1_write2buff(RX1_Buffer[i]); // 回显
+ 197   6                  TX2_write2buff(RX1_Buffer[i]); // 发给UART2
+ 198   6                }
+ 199   5              }
+ 200   4              COM1.RX_Cnt = 0;
+ 201   4            }
+ 202   3          }
+ 203   2          // 不要处理的太快
+ 204   2          os_wait2(K_TMO, 2); // 10ms
+ 205   2        }
+ 206   1      }
+ 207          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    337    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      5      12
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,65 @@
+C51 COMPILER V9.60.7.0   APP_ULTRASONIC                                                    05/10/2024 15:28:54 PAGE 1   
+
+
+C51 COMPILER V9.60.7.0, COMPILATION OF MODULE APP_ULTRASONIC
+OBJECT MODULE PLACED IN .\Objects\App_Ultrasonic.obj
+COMPILER INVOKED BY: D:\Keil_v5\C51\BIN\C51.EXE App\App_Ultrasonic.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(.\User;.\OS;.
+                    -\Lib;.\Driver) DEBUG OBJECTEXTEND PRINT(.\Listings\App_Ultrasonic.lst) TABS(2) OBJECT(.\Objects\App_Ultrasonic.obj)
+
+line level    source
+
+   1          #include "App.h"
+   2          #include "Ultrasonic.h"
+   3          #include "Buzzer.h"
+   4          
+   5          u8 is_ultrasonic_enable = FALSE; //  «∑Ò∆Ù”√≥¨…˘≤®
+   6          float global_distance_cm = -1;
+   7          
+   8          void task_ultrasonic() _task_ TASK_ULTRA {  
+   9   1        float distance;
+  10   1        u8 rst;
+  11   1        
+  12   1        Ultrasonic_init();
+  13   1        
+  14   1        while(1){ 
+  15   2          if(!is_ultrasonic_enable){
+  16   3            // 200ms
+  17   3            // –›√ﬂ
+  18   3            os_wait2(K_TMO, 40); // 200ms = 5ms * 40
+  19   3            continue;
+  20   3          }
+  21   2          
+  22   2          // ¥•∑¢≤‚æ‡
+  23   2          rst = Ultrasonic_get_distance(&distance);
+  24   2          if(rst == SUCCESS){ // 0
+  25   3            printf("distance: %.3f cm\n", distance);
+  26   3            global_distance_cm = distance;
+  27   3      
+  28   3            if(distance < 20){
+  29   4              // œÏcount¥Œ, ∞¥’’÷∏∂®º‰∏Ù ±º‰gap ms
+  30   4              Buzzer_play(2, 100);
+  31   4            }
+  32   3            
+  33   3          }else { // -1, 1, 2
+  34   3            printf("≤‚æ‡ ß∞‹: %.3f Rst:%d\n", distance, (int)rst);
+  35   3          }
+  36   2          
+  37   2          // 200ms
+  38   2          os_wait2(K_TMO, 40); // 200ms = 5ms * 40
+  39   2        }
+  40   1        
+  41   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    172    ----
+   CONSTANT SIZE    =     42    ----
+   XDATA SIZE       =      5       5
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

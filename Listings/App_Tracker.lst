@@ -1,0 +1,82 @@
+C51 COMPILER V9.60.7.0   APP_TRACKER                                                       05/10/2024 15:28:54 PAGE 1   
+
+
+C51 COMPILER V9.60.7.0, COMPILATION OF MODULE APP_TRACKER
+OBJECT MODULE PLACED IN .\Objects\App_Tracker.obj
+COMPILER INVOKED BY: D:\Keil_v5\C51\BIN\C51.EXE App\App_Tracker.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(.\User;.\OS;.\Li
+                    -b;.\Driver) DEBUG OBJECTEXTEND PRINT(.\Listings\App_Tracker.lst) TABS(2) OBJECT(.\Objects\App_Tracker.obj)
+
+line level    source
+
+   1          #include "App.h"
+   2          #include "Tracker.h"
+   3          #include "Motors.h"
+   4          
+   5          void task_tracker() _task_ TASK_TRACK {
+   6   1      //  u8 states[3];
+   7   1      //  u8 i;
+   8   1        int pos, last_pos;
+   9   1        // 不断检查地面 0 0 0 \r\n
+  10   1        Tracker_init();
+  11   1        
+  12   1        while(1) {
+  13   2      //    Tracker_scan(states);
+  14   2      //    for(i = 0; i < 3; i++){
+  15   2      //      printf("%d ", (int)states[i]);
+  16   2      //    }
+  17   2      //    printf("\r\n");
+  18   2          // 障碍物判断
+  19   2          if(is_ultrasonic_enable && global_distance_cm < 20){
+  20   3            Motors_stop();
+  21   3            os_wait2(K_TMO, 2);// 10ms = 5ms * 2
+  22   3            continue;
+  23   3          }
+  24   2          
+  25   2          // 低电量判断
+  26   2          if(isLowPower()){
+  27   3            Motors_stop();
+  28   3            os_wait2(K_TMO, 2);// 10ms = 5ms * 2
+  29   3            continue;
+  30   3          }
+  31   2          
+  32   2          pos = Tracker_get_position();
+  33   2          if(pos == last_pos) {
+  34   3            os_wait2(K_TMO, 2);// 10ms = 5ms * 2
+  35   3            // 黑线位置没发生变化，直接返回
+  36   3            continue;
+  37   3          }
+  38   2          // 记录最后一次pos
+  39   2          last_pos = pos;
+  40   2      
+  41   2          // -32, -16, 0, 16, 32
+  42   2          if (pos < 0) {
+  43   3            Motors_around(40, 0);
+  44   3      //      printf("pos: %d -> %s\r\n", (int)pos, "左转");
+  45   3          } else if(pos > 0) {
+  46   3            Motors_around(40, 1);
+  47   3      //      printf("pos: %d -> %s\r\n", (int)pos, "右转");
+  48   3          } else {
+  49   3            Motors_forward(40);
+  50   3      //      printf("pos: %d -> %s\r\n", (int)pos, "直行");
+  51   3          }
+  52   2      //    os_wait2(K_TMO, 40);// 200ms = 5ms * 40
+  53   2      //    os_wait2(K_TMO, 4);// 20ms = 5ms * 4
+  54   2          os_wait2(K_TMO, 2);// 10ms = 5ms * 2
+C51 COMPILER V9.60.7.0   APP_TRACKER                                                       05/10/2024 15:28:54 PAGE 2   
+
+  55   2        }
+  56   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    155    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----       4
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

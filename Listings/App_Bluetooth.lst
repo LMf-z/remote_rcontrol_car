@@ -1,0 +1,233 @@
+C51 COMPILER V9.60.7.0   APP_BLUETOOTH                                                     05/10/2024 15:28:54 PAGE 1   
+
+
+C51 COMPILER V9.60.7.0, COMPILATION OF MODULE APP_BLUETOOTH
+OBJECT MODULE PLACED IN .\Objects\App_Bluetooth.obj
+COMPILER INVOKED BY: D:\Keil_v5\C51\BIN\C51.EXE App\App_Bluetooth.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(.\User;.\OS;.\
+                    -Lib;.\Driver) DEBUG OBJECTEXTEND PRINT(.\Listings\App_Bluetooth.lst) TABS(2) OBJECT(.\Objects\App_Bluetooth.obj)
+
+line level    source
+
+   1          #include "App.h"
+   2          #include "GPIO.h"
+   3          #include "UART.h"
+   4          #include "NVIC.h"
+   5          #include "Switch.h"
+   6          #include "Buzzer.h"
+   7          #include "Light.h"
+   8          #include "Motors.h"
+   9          
+  10          #define BT_EN P40
+  11          void bt_enable(){
+  12   1        // 蓝牙使能 （产生下降沿即可唤醒蓝牙模块）
+  13   1        BT_EN = 1;
+  14   1        os_wait2(K_TMO, 1);
+  15   1        BT_EN = 0;
+  16   1      }
+  17          
+  18          static void GPIO_config(){
+  19   1        GPIO_InitTypeDef  GPIO_InitStructure;   //结构定义
+  20   1      
+  21   1        // UART2
+  22   1        GPIO_InitStructure.Pin  = GPIO_Pin_0 | GPIO_Pin_1;    //指定要初始化的IO,
+  23   1        GPIO_InitStructure.Mode = GPIO_PullUp;  //指定IO的输入或输出方式,GPIO_PullUp,GPIO_HighZ,GPIO_OUT_OD,GPIO_
+             -OUT_PP
+  24   1        GPIO_Inilize(GPIO_P1, &GPIO_InitStructure);//初始化
+  25   1      
+  26   1        // BT_EN
+  27   1        GPIO_InitStructure.Pin  = GPIO_Pin_0;   //指定要初始化的IO,
+  28   1        GPIO_InitStructure.Mode = GPIO_PullUp;  //指定IO的输入或输出方式,GPIO_PullUp,GPIO_HighZ,GPIO_OUT_OD,GPIO_
+             -OUT_PP
+  29   1        GPIO_Inilize(GPIO_P4, &GPIO_InitStructure);//初始化
+  30   1      }
+  31          
+  32          void UART2_config(void) {
+  33   1        COMx_InitDefine   COMx_InitStructure;         //结构定义
+  34   1        COMx_InitStructure.UART_Mode      = UART_8bit_BRTx; //模式, UART_ShiftRight,UART_8bit_BRTx,UART_9bit,UAR
+             -T_9bit_BRTx
+  35   1        COMx_InitStructure.UART_BRT_Use   = BRT_Timer2;     //选择波特率发生器, BRT_Timer1, BRT_Timer2 (注意: 串口
+             -2固定使用BRT_Timer2)
+  36   1        COMx_InitStructure.UART_BaudRate  = 9600ul;     //波特率, 一般 110 ~ 115200
+  37   1        COMx_InitStructure.UART_RxEnable  = ENABLE;       //接收允许,   ENABLE或DISABLE
+  38   1        COMx_InitStructure.BaudRateDouble = DISABLE;      //波特率加倍, ENABLE或DISABLE
+  39   1        UART_Configuration(UART2, &COMx_InitStructure);   //初始化串口1 UART1,UART2,UART3,UART4
+  40   1      
+  41   1        NVIC_UART2_Init(ENABLE,Priority_1);   //中断使能, ENABLE/DISABLE; 优先级(低到高) Priority_0,Priority_1,Pr
+             -iority_2,Priority_3
+  42   1        UART2_SW(UART2_SW_P10_P11);   // 引脚选择, UART2_SW_P10_P11,UART2_SW_P46_P47
+  43   1      }
+  44          #define BUTTON_A  4
+  45          #define BUTTON_B  5
+  46          #define BUTTON_C  6
+  47          #define BUTTON_D  7
+  48          
+  49          #define IS_PRESSED(btn) (RX2_Buffer[btn] == 0x01)
+C51 COMPILER V9.60.7.0   APP_BLUETOOTH                                                     05/10/2024 15:28:54 PAGE 2   
+
+  50          /************************
+  51           0  1  2  3  4  5  6  7  数组索引
+  52           帧头  x  y  A  B  C  D
+  53          DD 77 EF 50 01 00 01 00  数据示例
+  54          
+  55          帧头 01：DD 77
+  56          方向 23：EF 50
+  57          按钮 4567: ABCD  按下01 抬起00
+  58          
+  59          A: 蜂鸣器/车灯
+  60          B: 左旋转: 按下开始转,抬起停止转
+  61          C: 右旋转: 按下开始转,抬起停止转
+  62          D: 开启/关闭巡线
+  63          **************************/
+  64          u8 is_turning   = FALSE;  // 是否正在掉头旋转
+  65          u8 is_tracking  = FALSE;  // 是否正在巡线
+  66          void do_control_action(u8* array, u8 len){
+  67   1        static char x, y;
+  68   1        u8 i;
+  69   1        if(len < 8){
+  70   2          return;
+  71   2        }
+  72   1        // 根据收到的蓝牙数据（字节数组），对小车进行控制
+  73   1      //  printf("data: %02x\n", (int)array[4]);
+  74   1        printf("-> ");
+  75   1        for(i = 0; i < 8; i++){
+  76   2          printf("%02X ", (int)array[i]);
+  77   2        }
+  78   1        printf("\n");
+  79   1        
+  80   1        if(array[0] != 0xDD){
+  81   2          return;
+  82   2        }
+  83   1        if(array[1] != 0x77){
+  84   2          return;
+  85   2        }
+  86   1        
+  87   1        // ----------------------------------------- 按钮A判定
+  88   1        if(array[BUTTON_A] == 0x01){
+  89   2          Light_on(ALL);
+  90   2          Buzzer_play(2, 200);
+  91   2          Light_off(ALL);
+  92   2          
+  93   2          // 开启关闭障碍物判定逻辑（超声波模块）
+  94   2          is_ultrasonic_enable = !is_ultrasonic_enable;
+  95   2          return;
+  96   2        }
+  97   1        
+  98   1        // 低电量禁止以下轮子运动
+  99   1        if(isLowPower()){
+ 100   2          Motors_stop();
+ 101   2          return;
+ 102   2        }
+ 103   1        
+ 104   1        // ----------------------------------------- 按钮BC旋转判定
+ 105   1        if(array[BUTTON_B] == 0x01){// 左旋转
+ 106   2          Motors_around(25, 0);
+ 107   2          is_turning = TRUE;
+ 108   2          return;
+ 109   2        }else if(array[BUTTON_C] == 0x01){ // 右旋转
+ 110   2          Motors_around(25, 1);
+ 111   2          is_turning = TRUE;
+C51 COMPILER V9.60.7.0   APP_BLUETOOTH                                                     05/10/2024 15:28:54 PAGE 3   
+
+ 112   2          return;
+ 113   2        }else if (is_turning){  // 停止旋转
+ 114   2          is_turning = FALSE;
+ 115   2          Motors_stop();
+ 116   2          return;
+ 117   2        }
+ 118   1        
+ 119   1        // -------------------------------------------按钮D 开启关闭巡线
+ 120   1        if(array[BUTTON_D] == 0x01){
+ 121   2          if(is_tracking) {
+ 122   3            // 第二次按下：停止巡线
+ 123   3            Motors_stop();
+ 124   3            os_delete_task(TASK_TRACK);
+ 125   3            printf("结束巡线\n");
+ 126   3          } else {
+ 127   3            // 第一次按下：巡线
+ 128   3            os_create_task(TASK_TRACK);
+ 129   3            printf("开始巡线\n");
+ 130   3          }
+ 131   2          is_tracking = !is_tracking;
+ 132   2          return;
+ 133   2        }
+ 134   1        // -------------------------------------------- 摇杆控制移动
+ 135   1        x = array[2];
+ 136   1        y = array[3];
+ 137   1        
+ 138   1        printf("x->%d,\ty->%d\r\n", (int)x, (int)y);
+ 139   1        
+ 140   1        Motors_move((int)x, (int)y);
+ 141   1      }
+ 142          
+ 143          void do_control(){
+ 144   1        u8 i;
+ 145   1        u8 total = COM2.RX_Cnt;
+ 146   1        // 如果COM2.RX_Cnt == 8
+ 147   1        // 如果COM2.RX_Cnt == 16
+ 148   1        
+ 149   1        // DD 77 EF 50 01 00 01 00 DD 77 00 00 01 00 01 00
+ 150   1        // DD 77 EF 50 01 00 01 00 DD 77 00 00  ==> 8 + 4 = 12
+ 151   1        // DD 77 EF 50 01 00 01 00 DD 77 00 00 01 00 01 00 DD 77 3A 4B
+ 152   1        
+ 153   1        for(i = 0; i < COM2.RX_Cnt - 1; i++){
+ 154   2          // 找连续出现的 DD 77， 截取后边的6个字节，一共8个字节
+ 155   2          if(RX2_Buffer[i] == 0xDD && RX2_Buffer[i+1] == 0x77){
+ 156   3            
+ 157   3            // i==8, i+1==9 处理末尾数据不足情况（可以不考虑）
+ 158   3            if(COM2.RX_Cnt - i < 8){ // 12 - 8 == 4
+ 159   4              // 剩余数量 < 8直接结束循环
+ 160   4              break;
+ 161   4            }
+ 162   3            
+ 163   3            // 从DD开始，取出8个字节
+ 164   3            do_control_action(&RX2_Buffer[i], 8);
+ 165   3            i += 7;
+ 166   3          }
+ 167   2        }
+ 168   1      }
+ 169          
+ 170          // 2. UART2接收任务：把UART2从蓝牙收到的数据转发给UART1电脑PC
+ 171          void task_bluetooth() _task_ TASK_BLUETOOTH {
+ 172   1        u8 i;
+ 173   1        GPIO_config();
+C51 COMPILER V9.60.7.0   APP_BLUETOOTH                                                     05/10/2024 15:28:54 PAGE 4   
+
+ 174   1        UART2_config();
+ 175   1        
+ 176   1        while(1) {
+ 177   2          if(COM2.RX_TimeOut > 0) {
+ 178   3            //超时计数
+ 179   3            if(--COM2.RX_TimeOut == 0) {
+ 180   4              if(COM2.RX_Cnt > 0) {
+ 181   5                
+ 182   5                // 在此函数内部，对收到的数据进行分包处理
+ 183   5                do_control();
+ 184   5                
+ 185   5                for(i=0; i<COM2.RX_Cnt; i++)  {
+ 186   6                  // RX2_Buffer[i]存的是接收的数据，写出用 TX2_write2buff
+ 187   6                  // TODO: 做具体的逻辑 on_uart2_recv
+ 188   6                  TX1_write2buff(RX2_Buffer[i]); // 转发给PC
+ 189   6                }
+ 190   5              }
+ 191   4              COM2.RX_Cnt = 0;
+ 192   4            }
+ 193   3          }
+ 194   2          
+ 195   2          // 不要处理的太快
+ 196   2          os_wait2(K_TMO, 2); // 10ms
+ 197   2        }
+ 198   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    716    ----
+   CONSTANT SIZE    =     47    ----
+   XDATA SIZE       =      4      18
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

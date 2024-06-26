@@ -1,0 +1,73 @@
+C51 COMPILER V9.60.7.0   LIGHT                                                             05/10/2024 15:28:54 PAGE 1   
+
+
+C51 COMPILER V9.60.7.0, COMPILATION OF MODULE LIGHT
+OBJECT MODULE PLACED IN .\Objects\Light.obj
+COMPILER INVOKED BY: D:\Keil_v5\C51\BIN\C51.EXE Driver\Light.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(.\User;.\OS;.\Lib;.
+                    -\Driver) DEBUG OBJECTEXTEND PRINT(.\Listings\Light.lst) TABS(2) OBJECT(.\Objects\Light.obj)
+
+line level    source
+
+   1          #include "Light.h"
+   2          
+   3          
+   4          void Light_init(){
+   5   1        LIGHT_GPIO_INIT();
+   6   1        
+   7   1        // 默认全部熄灭
+   8   1        Light_off(ALL);
+   9   1      }
+  10          
+  11          
+  12          // 点亮指定的灯
+  13          void Light_on(Light light){
+  14   1        switch(light){
+  15   2          case ALL:     
+  16   2            LED_L = 1;
+  17   2            LED_R = 1;
+  18   2            break;
+  19   2          case LEFT:      
+  20   2            LED_L = 1;
+  21   2            break;
+  22   2          case RIGHT:     
+  23   2            LED_R = 1;
+  24   2            break;
+  25   2          default:
+  26   2            break;
+  27   2        }
+  28   1      }
+  29          
+  30          // 熄灭指定的灯
+  31          void Light_off(Light light){
+  32   1        switch(light){
+  33   2          case ALL:     
+  34   2            LED_L = 0;
+  35   2            LED_R = 0;
+  36   2            break;
+  37   2          case LEFT:      
+  38   2            LED_L = 0;
+  39   2            break;
+  40   2          case RIGHT:     
+  41   2            LED_R = 0;
+  42   2            break;
+  43   2          default:
+  44   2            break;
+  45   2        }
+  46   1      
+  47   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     61    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+C51 COMPILER V9.60.7.0   LIGHT                                                             05/10/2024 15:28:54 PAGE 2   
+
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,102 @@
+C51 COMPILER V9.60.7.0   ULTRASONIC                                                        05/10/2024 15:28:54 PAGE 1   
+
+
+C51 COMPILER V9.60.7.0, COMPILATION OF MODULE ULTRASONIC
+OBJECT MODULE PLACED IN .\Objects\Ultrasonic.obj
+COMPILER INVOKED BY: D:\Keil_v5\C51\BIN\C51.EXE Driver\Ultrasonic.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(.\User;.\OS;.\
+                    -Lib;.\Driver) DEBUG OBJECTEXTEND PRINT(.\Listings\Ultrasonic.lst) TABS(2) OBJECT(.\Objects\Ultrasonic.obj)
+
+line level    source
+
+   1          #include "Ultrasonic.h"
+   2          #include "GPIO.h"
+   3          
+   4          
+   5          void Ultrasonic_init(){
+   6   1        GPIO_INIT();
+   7   1        
+   8   1        // 默认拉低
+   9   1        TRIG = 0;
+  10   1        // 拉低
+  11   1        ECHO = 0;
+  12   1        
+  13   1      }
+  14          void Delay10us(void)  //@24.000MHz
+  15          {
+  16   1        unsigned char data i;
+  17   1      
+  18   1        i = 78;
+  19   1        while (--i);
+  20   1      }
+  21          
+  22          // 触发测距，并计算距离
+  23          // 返回值：是否成功，0成功SUCCESS， -1失败FAIL
+  24          // distance会被填充为距离，单位是cm
+  25          char Ultrasonic_get_distance(float* distance){
+  26   1        u16 cnt_10us = 0;
+  27   1        float calc_dis = 0;
+  28   1        
+  29   1        // 1. 把TRIG拉高10us以上
+  30   1        TRIG = 1;
+  31   1        Delay10us();
+  32   1        Delay10us();
+  33   1        TRIG = 0;
+  34   1        
+  35   1        // Delay一段时间，确保ECHO被拉低了
+  36   1        Delay10us();
+  37   1        
+  38   1        // 2. 等待ECHO被拉高,在一定时间内 (194us) < 300us
+  39   1        while(ECHO == 0 && cnt_10us <= 30){
+  40   2          Delay10us();
+  41   2          cnt_10us++; // 30 -> 300us
+  42   2        }
+  43   1        
+  44   1        if(cnt_10us * 10 >= 300){
+  45   2          printf("ECHO拉高信号超时: %d us, 退出\n", (int)(cnt_10us * 10));
+  46   2          return FAIL; // -1
+  47   2        }
+  48   1        
+  49   1      //  printf("ECHO: %d us\n", (int)(cnt_10us * 10));
+  50   1        
+  51   1        // 3. 记录ECHO从上升沿到下降沿的间隔时间
+  52   1        cnt_10us = 0;
+  53   1        while(ECHO == 1){
+  54   2          Delay10us();
+C51 COMPILER V9.60.7.0   ULTRASONIC                                                        05/10/2024 15:28:54 PAGE 2   
+
+  55   2          cnt_10us++;
+  56   2        }
+  57   1        // 3000us -> 3ms
+  58   1        // us -> ms
+  59   1        printf("echo -> %.2f ms\n", (cnt_10us * 0.01));
+  60   1        
+  61   1        // dis = (11ms * 340m/s) / 2
+  62   1        // dis = (11ms * 34000cm/1000ms) / 2
+  63   1        // dis = (11ms * 34cm/ms) / 2
+  64   1        // dis = 187cm
+  65   1        calc_dis = ((cnt_10us * 0.01) * 34) * 0.5;
+  66   1        
+  67   1        *distance = calc_dis;
+  68   1        
+  69   1        if(calc_dis < 2.0){ // 距离太短，数值不保证
+  70   2          return 1;
+  71   2        }else if(calc_dis > 400.0){ // 距离太远，数值也不保证
+  72   2          return 2;
+  73   2        }
+  74   1        
+  75   1        return SUCCESS; // 0
+  76   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    337    ----
+   CONSTANT SIZE    =     48    ----
+   XDATA SIZE       =   ----       9
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----       1
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

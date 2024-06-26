@@ -1,0 +1,124 @@
+C51 COMPILER V9.60.7.0   BUZZER                                                            05/10/2024 15:28:54 PAGE 1   
+
+
+C51 COMPILER V9.60.7.0, COMPILATION OF MODULE BUZZER
+OBJECT MODULE PLACED IN .\Objects\Buzzer.obj
+COMPILER INVOKED BY: D:\Keil_v5\C51\BIN\C51.EXE Driver\Buzzer.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(.\User;.\OS;.\Lib;
+                    -.\Driver) DEBUG OBJECTEXTEND PRINT(.\Listings\Buzzer.lst) TABS(2) OBJECT(.\Objects\Buzzer.obj)
+
+line level    source
+
+   1          #include "Buzzer.h"
+   2          #include "GPIO.h"
+   3          #include "STC8H_PWM.h"
+   4          #include "Switch.h"
+   5          #include "NVIC.h"
+   6          #include "delay.h"
+   7          
+   8          
+   9          #define BUZZER                P34
+  10          #define BUZZER_GPIO_INIT()    P3_MODE_OUT_PP(GPIO_Pin_4)
+  11          
+  12          #define BUZZER_HZ     1000
+  13          
+  14          #define PERIOD        ((MAIN_Fosc / BUZZER_HZ) - 1)
+  15          PWMx_Duty dutyB;
+  16          void  PWM_config(u8 enable)
+  17          {
+  18   1        PWMx_InitDefine   PWMx_InitStructure;
+  19   1      
+  20   1        // 配置PWM8
+  21   1        PWMx_InitStructure.PWM_Mode       = CCMRn_PWM_MODE1;  //模式,   CCMRn_FREEZE,CCMRn_MATCH_VALID,CCMRn_MATCH_I
+             -NVALID,CCMRn_ROLLOVER,CCMRn_FORCE_INVALID,CCMRn_FORCE_VALID,CCMRn_PWM_MODE1,CCMRn_PWM_MODE2
+  22   1        PWMx_InitStructure.PWM_Duty       = PERIOD * 0.5f;  //PWM占空比时间, 0~Period
+  23   1        PWMx_InitStructure.PWM_EnoSelect  = enable ? ENO8P : 0;     //输出通道选择, ENO1P,ENO1N,ENO2P,ENO2N,ENO3P,E
+             -NO3N,ENO4P,ENO4N / ENO5P,ENO6P,ENO7P,ENO8P
+  24   1        PWM_Configuration(PWM8, &PWMx_InitStructure);     //初始化PWM,  PWMA,PWMB
+  25   1      
+  26   1        // 配置PWMB
+  27   1        PWMx_InitStructure.PWM_Period   = PERIOD;     //周期时间,   0~65535
+  28   1        PWMx_InitStructure.PWM_DeadTime = 0;          //死区发生器设置, 0~255
+  29   1        PWMx_InitStructure.PWM_MainOutEnable= ENABLE;     //主输出使能, ENABLE,DISABLE
+  30   1        PWMx_InitStructure.PWM_CEN_Enable   = ENABLE;     //使能计数器, ENABLE,DISABLE
+  31   1        PWM_Configuration(PWMB, &PWMx_InitStructure);     //初始化PWM通用寄存器,  PWMA,PWMB
+  32   1      
+  33   1        // 切换PWM通道
+  34   1        PWM8_SW(PWM8_SW_P34);         //PWM8_SW_P23,PWM8_SW_P34,PWM8_SW_P03,PWM8_SW_P77
+  35   1      
+  36   1        // 初始化PWMB的中断
+  37   1        NVIC_PWM_Init(PWMB,DISABLE,Priority_0);
+  38   1      }
+  39          
+  40          void Buzzer_init(){
+  41   1        BUZZER_GPIO_INIT();
+  42   1        
+  43   1        PWM_config(DISABLE);
+  44   1        
+  45   1        BUZZER = 0;
+  46   1      }
+  47          
+  48          // 按照指定频率震荡
+  49          void Buzzer_open(){
+  50   1      //  BUZZER = 1;
+  51   1        PWM_config(ENABLE);
+  52   1      }
+C51 COMPILER V9.60.7.0   BUZZER                                                            05/10/2024 15:28:54 PAGE 2   
+
+  53          
+  54          // 关闭震荡
+  55          void Buzzer_close(){
+  56   1      //  BUZZER = 0;
+  57   1        PWM_config(DISABLE);
+  58   1      }
+  59          
+  60          // 响count次, 按照指定间隔时间gap ms . gap < 1275
+  61          void Buzzer_play(u8 count, u16 gap){ 
+  62   1        u8 i;
+  63   1        for (i = 0; i < count; i++){
+  64   2          Buzzer_open();
+  65   2      //    delay_ms(100);
+  66   2          os_wait2(K_TMO, 20);// 20 * 5ms = 100ms
+  67   2          
+  68   2          Buzzer_close();
+  69   2      //    delay_ms(gap);
+  70   2          os_wait2(K_TMO, gap / 5);// 100ms / 5ms = N
+  71   2        }
+  72   1      }
+  73          
+  74          void Delay100us(void) //@24.000MHz
+  75          {
+  76   1        unsigned char data i, j;
+  77   1      
+  78   1        i = 4;
+  79   1        j = 27;
+  80   1        do
+  81   1        {
+  82   2          while (--j);
+  83   2        } while (--i);
+  84   1      }
+  85          
+  86          // 响一小段时间 100ms
+  87          void Buzzer_beep(){
+  88   1        int i;
+  89   1        for(i = 0; i < 1000; i++){
+  90   2          BUZZER = !BUZZER;
+  91   2          //  1ms -> 500Hz
+  92   2          //0.1ms -> 5000Hz
+  93   2          Delay100us();
+  94   2        }
+  95   1        // 1000 * 0.1ms = 100ms
+  96   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    220    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =     16      13
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----       2
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

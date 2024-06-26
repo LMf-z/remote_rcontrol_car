@@ -1,0 +1,24 @@
+".\Objects\Conf_tny.obj",
+".\Objects\main.obj",
+".\Objects\App_Bluetooth.obj",
+".\Objects\App_Tracker.obj",
+".\Objects\App_Ultrasonic.obj",
+".\Objects\App_Battery_Detection.obj",
+".\Objects\Delay.obj",
+".\Objects\GPIO.obj",
+".\Objects\NVIC.obj",
+".\Objects\UART_Isr.obj",
+".\Objects\ADC.obj",
+".\Objects\ADC_Isr.obj",
+".\Objects\STC8H_PWM.obj",
+".\Objects\UART.obj",
+".\Objects\Light.obj",
+".\Objects\Key.obj",
+".\Objects\Battery.obj",
+".\Objects\Buzzer.obj",
+".\Objects\Ultrasonic.obj",
+".\Objects\Motors.obj",
+".\Objects\Tracker.obj" 
+TO ".\Objects\project" Rtx51Tiny 
+PRINT(".\Listings\project.m51") RAMSIZE(256) 
+DISABLEWARNING (16,15) 
